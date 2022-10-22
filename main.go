@@ -16,6 +16,7 @@ const (
 )
 
 func init() {
+	echoMsg()
 	if getProcessOwner() != "root\n" {
 		log.Fatalln("Please run this program with root.")
 	}
