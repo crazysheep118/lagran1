@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/signal"
 	"sync"
 )
 
@@ -27,18 +28,19 @@ func main() {
 	}
 	if Daemon {
 		SubProcess(StripSlice(os.Args, "-"+DAEMON))
-		fmt.Printf("[*] Daemon running in PID: %d PPID: %d\n", os.Getpid(), os.Getppid())
+		fmt.Printf("\n[*] Daemon running in PID: %d PPID: %d\n", os.Getpid(), os.Getppid())
 		os.Exit(0)
 	} else if Forever {
 		for {
 			cmd := SubProcess(StripSlice(os.Args, "-"+FOREVER))
-			fmt.Printf("[*] Forever running in PID: %d PPID: %d\n", os.Getpid(), os.Getppid())
+			fmt.Printf("\n[*] Forever running in PID: %d PPID: %d\n", os.Getpid(), os.Getppid())
 			cmd.Wait()
 		}
 		os.Exit(0)
 	} else {
-		UnsetIptable(Port)
+		log.Println("Starting to set iptables.")
 		SetIptable(Port)
+		log.Println("Set iptables completely.")
 		var wg sync.WaitGroup
 		if SaEnable {
 			p1, _ := ants.NewPoolWithFunc(128, func(i interface{}) {
@@ -46,7 +48,6 @@ func main() {
 				wg.Done()
 			})
 			defer p1.Release()
-			// Submit tasks one by one.
 			log.Println("Starting Task p1")
 			for i := 1000; i < 1128; i++ {
 				wg.Add(1)
@@ -59,7 +60,6 @@ func main() {
 				wg.Done()
 			})
 			defer p2.Release()
-			// Submit tasks one by one.
 			log.Println("Starting Task p2")
 			for i := 2000; i < 2128; i++ {
 				wg.Add(1)
@@ -72,7 +72,6 @@ func main() {
 				wg.Done()
 			})
 			defer p3.Release()
-			// Submit tasks one by one.
 			log.Println("Starting Task p3")
 			for i := 3000; i < 3128; i++ {
 				wg.Add(1)
@@ -85,13 +84,24 @@ func main() {
 				wg.Done()
 			})
 			defer p4.Release()
-			// Submit tasks one by one.
 			log.Println("Starting Task p4")
 			for i := 4000; i < 4128; i++ {
 				wg.Add(1)
 				_ = p4.Invoke(int(i))
 			}
 		}
-		wg.Wait()
+		//监听退出序号
+		sigs := make(chan os.Signal, 1)
+		done := make(chan bool, 1)
+		signal.Notify(sigs, os.Kill, os.Interrupt)
+		go func() {
+			<-sigs
+			log.Println("Receive interrupt signal.")
+			done <- true
+		}()
+		<-done
+		UnsetIptable(Port)
+		log.Fatalln("Program ended.")
+		//wg.Wait()
 	}
 }

@@ -10,6 +10,11 @@ func SetIptable(sport string) {
 	if err != nil {
 		log.Fatalf("Iptabels new error:%v", err)
 	}
+
+	log.Println("Starting to clear iptables OUTPUT chain.")
+	if err := ipt.ClearChain("filter", "OUTPUT"); err != nil {
+		log.Println("Failed to clear iptables OUTPUT chain.")
+	}
 	if SaEnable {
 		_ = ipt.AppendUnique("filter", "OUTPUT", "-p", "tcp", "-m", "multiport", "--sport", sport, "--tcp-flags", "SYN,RST,ACK,FIN,PSH", "SYN,ACK", "-j", "NFQUEUE", "--queue-balance", "1000:1127")
 	}
